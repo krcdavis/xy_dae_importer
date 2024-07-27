@@ -73,15 +73,49 @@ for item in daelist:
             imgp = ""#need to declare it up here
             if os.path.isfile( os.path.join(pathto, im) ):
                 imgp = os.path.join(pathto, im)
-                #img = bpy.data.images.load( os.path.join(pathto, im) )
-                #mats += m + " found\n"
             else:#... i'll do it later
-
-
+                dirs = [name for name in os.listdir(pathto)
+                        if os.path.isdir(os.path.join(pathto, name))]
+                for d in dirs:
+                    if os.path.isfile( os.path.join(pathto, d, im) ):
+                        imgp = os.path.join(pathto, d, im)
+                        break#no need to search any other dirs... there shouldn't be more anyway
 
             if imgp:
                 #mats
-                pass
+                img = bpy.data.images.load( imgp )
+                mats += m + " found\n"
+                #and set up the material.
+                mat = ob.data.materials.items()[0][1]
+                mat.blend_method = 'CLIP'#IT'S WORKING
+                
+                # Get the nodes
+                nodes = mat.node_tree.nodes
+                #nuke the nodes
+                nodes.clear()
+                
+                # Add back the Principled Shader node that i just nuked because it's easier than finding the existing one I guess
+                node_principled = nodes.new(type='ShaderNodeBsdfPrincipled')
+                node_principled.location = 0,0
+                
+                # Add the Image Texture node
+                node_tex = nodes.new('ShaderNodeTexImage')
+                # Assign the image
+                node_tex.image = img
+                node_tex.location = -400,0
+                
+                # Add the Output node
+                node_output = nodes.new(type='ShaderNodeOutputMaterial')   
+                node_output.location = 400,0
+
+                # Link all nodes
+                links = mat.node_tree.links
+                link = links.new(node_tex.outputs["Color"], node_principled.inputs["Base Color"])
+                #alpha...
+                link = links.new(node_tex.outputs["Alpha"], node_principled.inputs["Alpha"])
+                link = links.new(node_principled.outputs["BSDF"], node_output.inputs["Surface"])
+                
+                
             else:
                 mats += m + " !!!NOT FOUND!!!\n"
                           
